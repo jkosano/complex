@@ -1,0 +1,27 @@
+sudo: required
+services:
+  - dockerfile
+
+#build a test version before install for the client (prod dockerfiles don't allow for tests)
+  # specify build context of ./client
+before_install: 
+  - docker build -t jpk912/complex-test -f ./client/Dockerfile.dev ./client
+
+# -- -- indicates that the code should exit
+script:
+  - docker run -e CI=true jpk912/complex-test npm test -- --coverage
+
+#build production versions of all projects
+after_success: 
+  #build client, nginx, server, worker
+  - docker build -t jpk912/multi-client ./client
+  - docker build -t jpk912/multi-nginx ./nginx
+  - docker build -t jpk912/multi-server ./server
+  - docker build -t jpk912/multi-worker ./worker
+
+  #log into docker CLI with ENV variables and push to docker hub
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  - docker push jpk912/multi-client
+  - docker push jpk912/multi-nginx  
+  - docker push jpk912/multi-server
+  - docker push jpk912/multi-worker  
